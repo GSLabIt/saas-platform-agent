@@ -1,12 +1,12 @@
 [project]
 name = "relay-agent"
-version = "0.11.2"
+version = "0.11.3"
 description = "Open-source outbound-only agent for remote Docker/filesystem/Postgres operations (BYOI mode) — control-plane agnostic"
 requires-python = ">=3.12"
 
 [tool.commitizen]
 name = "cz_conventional_commits"
-version = "0.11.2"
+version = "0.11.3"
 tag_format = "v$version"
 version_scheme = "semver"
 update_changelog_on_bump = false
