@@ -352,6 +352,15 @@ async def _dispatch_message(
         request_id = message.get("id", "")
         method = message.get("method", "")
         params = message.get("params", {})
+        # The control plane sends a per-command timeout (AgentHttpProxy /
+        # AgentConnection.send_command). Honour it when it exceeds the
+        # session default — a fresh-server saas.instance.provision does a
+        # multi-GB image pull that never fits in 120s. Clamped to 30 min.
+        try:
+            _req_t = float(message.get("timeout") or 0)
+        except (TypeError, ValueError):
+            _req_t = 0.0
+        effective_timeout = min(max(command_timeout, _req_t), 1800.0)
         if params is None:
             params = {}
         elif not isinstance(params, dict):
@@ -462,13 +471,13 @@ async def _dispatch_message(
                     request_id,
                     method,
                     params,
-                    max(command_timeout, _POSTGRES_RECREATE_TIMEOUT)
+                    max(effective_timeout, _POSTGRES_RECREATE_TIMEOUT)
                     if method
                     in {
                         "saas.postgres.enable_pitr",
                         "saas.postgres.retune",
                     }
-                    else command_timeout,
+                    else effective_timeout,
                     command_future,
                 )
             )

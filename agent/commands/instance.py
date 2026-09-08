@@ -119,6 +119,14 @@ class InstanceCommands:
         env = {
             "ADDONS_PATH": addons_path,
         }
+        # DB connection env (HOST/PORT/USER/PASSWORD) — the ooops OCB
+        # entrypoint reads these to wait for and authenticate against the
+        # external Postgres. Strings only; skip anything non-str/None.
+        db_env = params.get("db_env")
+        if isinstance(db_env, dict):
+            for k, v in db_env.items():
+                if isinstance(k, str) and isinstance(v, str):
+                    env[k] = v
 
         # 8. Resource limits
         cpu_cores = params.get("cpu_cores")
@@ -172,6 +180,16 @@ class InstanceCommands:
             run_kwargs["nano_cpus"] = nano_cpus
         if mem_limit:
             run_kwargs["mem_limit"] = mem_limit
+
+        # Idempotent re-provision: a stale container with this name (a prior
+        # attempt that got far enough to create it, then failed/timed out)
+        # would otherwise 409 forever.
+        for stale in (container_name, f"{container_name}_cloudflared"):
+            try:
+                self._docker.containers.get(stale).remove(force=True)
+                logger.info("Removed stale container %s before re-provision", stale)
+            except Exception:  # noqa: BLE001 — NotFound or already gone
+                pass
 
         container = self._docker.containers.run(**run_kwargs)
         logger.info(
